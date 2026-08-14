@@ -16,7 +16,7 @@ DeepSeek Harness（DSH）的**创意工坊式插件浏览器**——零服务器
 - **智能一键安装/卸载**：自动识别仓库类型——bundle 型（`package.json` 声明 `dsh.*`）走官方 `dsh plugin add`；若包声明 `dsh.bundle.patch` 则由 DSH 自动加入 profile bundles（补丁层自动激活），旧版包自动补写激活行；nested 型（目录树中恰好一个 dsh 包，递归查找、支持 packages/&lt;name&gt; 等多层级 monorepo 布局，如皮肤合集）本地副本 + `link:` 子包；preset 型拷入 `.agent-presets`。卸载按安装方式逆向清理（pnpm remove 失败则不动文件、不留失效链接；成功后自动重启 dsh web 刷新插件表）；缺 git 时界面明确提示
 - **详情页**：星数/fork/语言/许可证/创建时间、README 轻量渲染、手动安装命令、GitHub 直达
 - **额度透明**：实时显示 GitHub 搜索剩余额度与恢复倒计时；可选填 GitHub Token（30 次/分，仅存本机浏览器）
-- **零服务器**：数据全部来自 GitHub 搜索 API（浏览器直连，CORS）+ raw.githubusercontent.com（特征验证与 README）
+- **零服务器**：数据全部来自 GitHub 搜索 API（浏览器直连，CORS）+ raw.githubusercontent.com（特征验证与 README）；可选接入统计服务后解锁「社区装机徽章 + 真·飙升榜」（见 [`remote/README.md`](remote/README.md)，不部署零影响）
 
 ## 📦 安装
 
@@ -64,6 +64,7 @@ dsh plugin --profile web add "github:yyyyukari/dsh-plugin-workshop"
 - [x] v1.2 智能安装/卸载：bundle 型走官方 `dsh plugin add` + 激活行，preset 型走 `.agent-presets`，卸载逆向清理（实测通过）
 - [x] v1.3 遵循 DSH bundle 规范：`package.json` 声明 `dsh.bundle.patch`（`dsh plugin add` 一条命令自动激活）；智能安装兼容三种仓库形态（bundle / nested / preset）
 - [x] v1.4 「已安装」管理视图（更新/卸载、类型与激活状态）；搜索结果排除官方核心仓库；卸载安全化（失败不改动、自动重启刷新）
+- [x] v1.5 可选统计服务（Phase A）：匿名装机埋点 + 社区装机徽章 + 真·飙升榜（Cloudflare Worker 参考实现见 `remote/`，未部署时零影响）
 - [x] 社区索引收录：✅ [awesome-deepseek-harness](https://github.com/0xsline/awesome-deepseek-harness)（已合并收录 + 描述刷新）；⏳ awesome-dsh-plugin / awesome-dsh-plugins（PR #42 / #50 待合并）
 
 ## 📄 License

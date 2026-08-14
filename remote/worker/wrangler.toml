@@ -1,0 +1,8 @@
+name = "dsh-workshop-stats"
+main = "src/index.js"
+compatibility_date = "2026-08-14"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "dsh-workshop-stats"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"

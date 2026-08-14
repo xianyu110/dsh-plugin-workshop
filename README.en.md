@@ -16,7 +16,7 @@ A **Steam Workshop-style plugin browser** for [DeepSeek Harness](https://github.
 - **Smart one-click install / uninstall**: repo type is auto-detected — bundle-type (package.json declares `dsh.*`) installs via the official `dsh plugin add` flow; packages that declare `dsh.bundle.patch` are auto-added to the profile's `dsh.profile.bundles` by DSH itself (patch layer auto-activates, zero config), while legacy packages get an auto-written activation row; nested-type (exactly one dsh package anywhere in the tree — recursive scan supporting multi-level monorepos like `packages/<name>`, e.g. skin collections) gets a local copy + `link:` to the subpackage; preset-type is copied into `.agent-presets`. Uninstall reverses the install path (no files are touched when pnpm remove fails — no dangling links; on success dsh web restarts automatically to refresh the plugin table); missing git is reported with clear guidance
 - **Detail page**: stars/forks/language/license/created time, lightweight README rendering (headings/bold/code/lists/links), manual install command, GitHub link
 - **Quota transparency**: live GitHub search rate-limit remaining + recovery countdown; optional GitHub Token (30 req/min, stored in the local browser only)
-- **Zero-server**: all data comes from the GitHub search API (browser-direct, CORS) + raw.githubusercontent.com (verification & README)
+- **Zero-server**: all data comes from the GitHub search API (browser-direct, CORS) + raw.githubusercontent.com (verification & README); optionally connecting a stats service unlocks community install badges + a real trending board (see [`remote/README.md`](remote/README.md) — zero impact when not deployed)
 
 ## 📦 Install
 
@@ -65,6 +65,7 @@ After activation, the "🧩 插件工坊" button appears under "New Session" in 
 - [x] v1.2 Smart install / uninstall: bundle-type via official `dsh plugin add` + activation row, preset-type via `.agent-presets`, uninstall reverses the path (tested end-to-end)
 - [x] v1.3 DSH bundle compliance: `dsh.bundle.patch` declared in package.json (one-command auto-activation via `dsh plugin add`); smart install covers all three repo shapes (bundle / nested / preset)
 - [x] v1.4 "Installed" management view (update/uninstall, type & active state); official core repos excluded from search; uninstall hardened (no mutation on failure, auto-restart to refresh)
+- [x] v1.5 Optional stats service (Phase A): anonymous install telemetry + community install badges + real trending board (Cloudflare Worker reference implementation in `remote/`; zero impact when not deployed)
 - [x] Community index exposure: ✅ [awesome-deepseek-harness](https://github.com/0xsline/awesome-deepseek-harness) (listed + description refreshed); ⏳ awesome-dsh-plugin / awesome-dsh-plugins (PR #42 / #50 open)
 
 ## 📄 License
