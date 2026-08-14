@@ -1,0 +1,8 @@
+# dsh-plugin-workshop 的激活补丁（文档用途）。
+# 本包不声明 dsh.bundle，激活行放在 profile 的用户补丁层
+# （profiles/<name>/cordis.patch.yml）中，以便被实时监视、热加载。
+# 若作为 bundle 手动接入其他 profile，请把下面这行加入该 profile 的
+# cordis.patch.yml（并把本包加入该 profile 的 dependencies）。
+- insert:
+    - id: plugin-workshop
+      name: '@dsh-external/dsh-plugin-workshop'
