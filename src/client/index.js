@@ -1,5 +1,5 @@
 /**
- * dsh-plugin-workshop（浏览器端源码）v1.0.0
+ * dsh-plugin-workshop（浏览器端源码）v1.1.0
  *
  * 常驻版插件工坊：
  * - 侧栏「新会话」按钮正下方克隆一个同规格「插件工坊」按钮（DOM 克隆官方按钮，
@@ -31,6 +31,19 @@ const store = {
 const TOKEN_KEY = 'dsh-plugin-workshop:token'
 function getToken() { try { return window.localStorage.getItem(TOKEN_KEY) || '' } catch (e) { return '' } }
 function saveToken(v) { try { if (v) window.localStorage.setItem(TOKEN_KEY, v); else window.localStorage.removeItem(TOKEN_KEY) } catch (e) {} }
+
+// ---------------- 宿主机安装接口（同源 HTTP，CSRF 用自定义头防护） ----------------
+const HOST_API = '/dsh-plugin-workshop/api'
+async function apiFetch(path) {
+  try {
+    const r = await window.fetch(path, { headers: { 'X-DSH-Workshop': '1' } })
+    let data = null
+    try { data = await r.json() } catch (e) { data = null }
+    return { status: r.status, data: data }
+  } catch (e) {
+    return { status: 0, data: { ok: false, error: '无法连接宿主机接口（dsh 服务未响应）' } }
+  }
+}
 
 // ---------------- 网络 ----------------
 async function ghFetch(url) {
@@ -375,6 +388,7 @@ if (React !== null) {
         el('div', { className: 'dshws-card-desc' }, props.desc),
         el('div', { className: 'dshws-card-meta' },
           el('span', { className: 'dshws-pill' }, '\u2605 ' + num(r.stars)),
+          props.installed ? el('span', { className: 'dshws-pill dshws-badge-installed' }, '\u2713 已安装') : null,
           v === 'yes' ? el('span', { className: 'dshws-pill dshws-badge-installed' }, '\u2713 疑似 DSH 插件') : null,
           v === 'no' ? el('span', { className: 'dshws-pill dshws-muted' }, '未检出插件特征') : null,
           r.language ? el('span', { className: 'dshws-pill' }, r.language) : null,
@@ -391,6 +405,9 @@ if (React !== null) {
     const [zhR, setZhR] = React.useState(null)
     const [busyR, setBusyR] = React.useState(false)
     const [viewR, setViewR] = React.useState('orig')
+    const [busyI, setBusyI] = React.useState(false)
+    const [msgI, setMsgI] = React.useState(null)
+    const [errI, setErrI] = React.useState(null)
     if (d.loading) return el('div', { className: 'dshws-body dshws-detail' }, back, el('div', { className: 'dshws-status' }, '加载详情\u2026'))
     if (d.error) return el('div', { className: 'dshws-body dshws-detail' }, back, el('div', { className: 'dshws-error' }, '\u26a0 ' + d.error))
     const m = d.data
@@ -403,6 +420,24 @@ if (React !== null) {
         setBusyR(false)
         if (zh) setViewR('zh')
       }).catch(function () { setBusyR(false) })
+    }
+    function doInstall() {
+      setBusyI(true)
+      setMsgI(null)
+      setErrI(null)
+      apiFetch(HOST_API + '/install?full_name=' + encodeURIComponent(m.full_name) + '&html_url=' + encodeURIComponent(m.html_url)).then(function (got) {
+        setBusyI(false)
+        const d = got && got.data
+        if (d && d.ok) {
+          setMsgI(d.already ? '该插件已安装' : '安装成功：' + d.path + (d.note ? '（' + d.note + '）' : ''))
+          if (props.onInstalledChanged) props.onInstalledChanged()
+        } else {
+          setErrI((d && d.error) || '安装失败（HTTP ' + (got && got.status) + '）')
+        }
+      }).catch(function (e) {
+        setBusyI(false)
+        setErrI(String((e && e.message) || e))
+      })
     }
     const readmeToggle = zhR
       ? el('span', null,
@@ -435,9 +470,18 @@ if (React !== null) {
         })) : null,
       ),
       el('div', { className: 'dshws-section' },
-        el('div', { className: 'dshws-section-label' }, '安装命令（浏览器版无法直接执行 git，请复制运行）'),
+        props.envInfo && props.envInfo.git === false
+          ? el('div', { className: 'dshws-error', style: { padding: 0, marginBottom: 8 } }, '\u26a0 本机未安装 git，一键安装不可用。请安装 Git for Windows 后重试（https://git-scm.com/download/win）。')
+          : null,
+        el('div', { className: 'dshws-btn-row' },
+          el('button', { className: 'dshws-btn' + (props.installed ? '' : ' dshws-btn-primary'), disabled: busyI || (props.envInfo && props.envInfo.git === false), onClick: function () { doInstall() } },
+            busyI ? '处理中\u2026' : (props.installed ? '\u2b06 更新到最新' : '\u2b07 一键安装（订阅）')),
+          msgI ? el('span', { className: 'dshws-ok' }, msgI) : null,
+          errI ? el('span', { className: 'dshws-error', style: { padding: 0 } }, '\u26a0 ' + errI) : null,
+        ),
+        el('div', { className: 'dshws-card-desc', style: { marginTop: 8 } }, '安装到 ' + (props.envInfo && props.envInfo.dir ? props.envInfo.dir : '<DSH_HOME>/.agent-presets') + '。'),
+        el('div', { className: 'dshws-card-desc', style: { marginTop: 4 } }, '手动安装：'),
         el('pre', { className: 'dshws-install' }, cmd),
-        el('div', { className: 'dshws-card-desc', style: { marginTop: 6 } }, 'DSH_HOME 默认为 ~/.dsh（Windows: %USERPROFILE%\\.dsh）。'),
       ),
       el('div', { className: 'dshws-section' },
         el('div', { className: 'dshws-section-label', style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 } },
@@ -485,6 +529,8 @@ if (React !== null) {
     const [showToken, setShowToken] = React.useState(false)
     const [tokenInput, setTokenInput] = React.useState('')
     const [now, setNow] = React.useState(Date.now())
+    const [envInfo, setEnvInfo] = React.useState(null)
+    const [installedList, setInstalledList] = React.useState([])
 
     function buildQ(kw) {
       let searchKw = kw
@@ -537,6 +583,10 @@ if (React !== null) {
     }, [query, sort, scope, when, tick, token])
 
     React.useEffect(function () {
+      refreshInstalled()
+    }, [])
+
+    React.useEffect(function () {
       if (scope !== 'all') return
       let cancelled = false
       const missing = items.filter(function (r) { return !verifyCache.has(r.full_name) }).slice(0, 24)
@@ -587,6 +637,21 @@ if (React !== null) {
       if (!d) return '（无描述）'
       if (lang === 'zh' && zhMap[d]) return zhMap[d]
       return d
+    }
+
+    function refreshInstalled() {
+      apiFetch(HOST_API + '/status').then(function (got) {
+        const d = got && got.data
+        if (d && d.ok) {
+          setEnvInfo({ git: !!d.git, dir: typeof d.dir === 'string' ? d.dir : '' })
+          setInstalledList(Array.isArray(d.list) ? d.list : [])
+        }
+      }).catch(function () {})
+    }
+
+    function isInstalled(name) {
+      const target = String(name || '').toLowerCase()
+      return installedList.some(function (d) { return String(d).toLowerCase() === target })
     }
 
     function loadMore() {
@@ -653,7 +718,7 @@ if (React !== null) {
     const whenText = when === 'all' ? '' : ' \u00b7 ' + WHEN_LABEL[when]
 
     const content = detail
-      ? el(DetailView, { detail: detail, onBack: function () { setDetail(null) }, desc: descOf(detail.data) })
+      ? el(DetailView, { detail: detail, onBack: function () { setDetail(null) }, desc: descOf(detail.data), installed: detail && detail.data ? isInstalled(String(detail.data.full_name).split('/').pop()) : false, envInfo: envInfo, onInstalledChanged: refreshInstalled })
       : el('div', { className: 'dshws-body' },
           el('div', { className: 'dshws-toolbar' },
             el('input', {
@@ -708,6 +773,7 @@ if (React !== null) {
           ) : null,
           (note || langNote) ? el('div', { className: 'dshws-note' }, note || langNote) : null,
           verifying ? el('div', { className: 'dshws-note' }, '正在验证插件特征\u2026') : null,
+          envInfo && envInfo.git === false ? el('div', { className: 'dshws-error', style: { padding: '2px 14px 0' } }, '\u26a0 未检测到 git：一键安装不可用（搜索浏览不受影响）。安装 Git for Windows 后刷新页面即可。') : null,
           hiddenCount > 0 ? el('div', { className: 'dshws-note' }, '已隐藏 ' + hiddenCount + ' 个未检出插件特征的仓库') : null,
           loading && items.length === 0 ? el('div', { className: 'dshws-status' }, '加载中\u2026') : null,
           error ? el('div', { className: 'dshws-error' },
@@ -729,6 +795,7 @@ if (React !== null) {
                 key: r.full_name,
                 repo: r,
                 desc: descOf(r),
+                installed: isInstalled(String(r.full_name).split('/').pop()),
                 verify: verifyMap[r.full_name],
                 onOpen: function () { openDetail(r) },
               })
@@ -759,7 +826,7 @@ if (React !== null) {
 }
 
 // ---------------- 样式 ----------------
-const CSS = '\n.dshws-root{display:flex;flex-direction:column;font-size:13px;line-height:1.5;color:inherit;min-height:0;}\n.dshws-tab{height:100%;}\n.dshws-overlay{position:fixed;top:20px;right:20px;bottom:20px;width:min(760px,calc(100vw - 40px));background:#fff;border:1px solid rgba(127,127,127,.35);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.25);z-index:1000;pointer-events:auto;overflow:hidden;color:#1f2328;}\n@media (prefers-color-scheme: dark){.dshws-overlay{background:#16181d;color:#e6e6e6;}}\n.dshws-header{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid rgba(127,127,127,.25);flex:0 0 auto;}\n.dshws-title{font-weight:600;font-size:14px;white-space:nowrap;}\n.dshws-sub{opacity:.65;font-size:11px;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}\n.dshws-close{border:none;background:transparent;cursor:pointer;font-size:13px;color:inherit;opacity:.7;padding:4px 8px;border-radius:6px;}\n.dshws-close:hover{opacity:1;background:rgba(127,127,127,.15);}\n.dshws-body{display:flex;flex-direction:column;min-height:0;flex:1 1 auto;overflow:hidden;}\n.dshws-toolbar{display:flex;gap:8px;align-items:center;padding:10px 14px;flex:0 0 auto;flex-wrap:wrap;}\n.dshws-search{flex:1 1 200px;min-width:140px;padding:6px 10px;border-radius:8px;border:1px solid rgba(127,127,127,.4);background:rgba(127,127,127,.08);color:inherit;font-size:13px;outline:none;}\n.dshws-search:focus{border-color:rgba(64,120,255,.7);}\n.dshws-scope{padding:6px 8px;border-radius:8px;border:1px solid rgba(127,127,127,.4);background:rgba(127,127,127,.08);color:inherit;font-size:13px;}\n.dshws-sorts{display:flex;gap:4px;}\n.dshws-sort{padding:6px 12px;border-radius:8px;border:1px solid rgba(127,127,127,.4);background:rgba(127,127,127,.08);color:inherit;font-size:12px;cursor:pointer;}\n.dshws-sort.dshws-active{background:rgba(64,120,255,.18);border-color:rgba(64,120,255,.7);font-weight:600;}\n.dshws-check{display:inline-flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;white-space:nowrap;}\n.dshws-tokenrow{display:flex;gap:8px;align-items:center;padding:0 14px 8px;flex-wrap:wrap;}\n.dshws-note{font-size:11px;opacity:.7;padding:2px 14px 0;flex:0 0 auto;}\n.dshws-list{flex:1 1 auto;overflow-y:auto;padding:4px 14px 14px;display:flex;flex-direction:column;gap:8px;min-height:0;}\n.dshws-card{display:flex;gap:10px;padding:10px;border:1px solid rgba(127,127,127,.25);border-radius:10px;cursor:pointer;background:rgba(127,127,127,.04);}\n.dshws-card:hover{border-color:rgba(64,120,255,.6);background:rgba(64,120,255,.07);}\n.dshws-avatar{width:34px;height:34px;border-radius:8px;flex:0 0 auto;object-fit:cover;background:rgba(127,127,127,.2);}\n.dshws-avatar-lg{width:40px;height:40px;}\n.dshws-card-body{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 auto;}\n.dshws-card-title{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}\n.dshws-card-desc{font-size:12px;opacity:.75;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}\n.dshws-card-meta{display:flex;gap:6px;flex-wrap:wrap;}\n.dshws-pill{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(127,127,127,.14);white-space:nowrap;}\n.dshws-pill.dshws-muted{opacity:.7;}\n.dshws-badge-installed{background:rgba(46,160,67,.16);color:#2ea043;}\n.dshws-status{padding:14px;font-size:12px;opacity:.8;}\n.dshws-error{padding:14px;font-size:12px;color:#d64545;}\n.dshws-back{align-self:flex-start;margin:10px 14px 0;padding:5px 12px;border-radius:8px;border:1px solid rgba(127,127,127,.4);background:transparent;color:inherit;cursor:pointer;font-size:12px;}\n.dshws-detail{overflow-y:auto;padding-bottom:14px;}\n.dshws-detail-head{padding:4px 14px 0;display:flex;flex-direction:column;gap:8px;}\n.dshws-detail-title{font-size:16px;font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}\n.dshws-link{color:#4c7dff;text-decoration:none;font-size:12px;font-weight:400;}\n.dshws-link:hover{text-decoration:underline;}\n.dshws-section{padding:10px 14px;}\n.dshws-section-label{font-size:11px;font-weight:700;text-transform:uppercase;opacity:.6;letter-spacing:.05em;margin-bottom:6px;}\n.dshws-install{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:rgba(127,127,127,.12);border:1px solid rgba(127,127,127,.25);border-radius:8px;padding:10px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;margin:0;}\n.dshws-footer{display:flex;align-items:center;gap:12px;padding:8px 14px;border-top:1px solid rgba(127,127,127,.2);font-size:11px;opacity:.85;flex:0 0 auto;}\n.dshws-muted{opacity:.7;}\n.dshws-loadmore{margin-left:auto;padding:5px 14px;border-radius:8px;border:1px solid rgba(64,120,255,.6);background:transparent;color:#4c7dff;cursor:pointer;font-size:12px;}\n.dshws-loadmore:hover{background:rgba(64,120,255,.12);}\n.dshws-loadmore:disabled{opacity:.5;cursor:default;}\n.dshws-mini{font-size:11px;color:#4c7dff;background:transparent;border:1px solid rgba(64,120,255,.5);border-radius:6px;padding:2px 8px;cursor:pointer;}\n.dshws-mini:hover{background:rgba(64,120,255,.12);}\n.dshws-mini-on{background:rgba(64,120,255,.18);border-color:rgba(64,120,255,.7);font-weight:600;}\n.dshws-md{font-size:12.5px;line-height:1.6;word-break:break-word;}\n.dshws-h{font-weight:700;margin:10px 0 4px;}\n.dshws-h1{font-size:15px;border-bottom:1px solid rgba(127,127,127,.25);padding-bottom:4px;}\n.dshws-h2{font-size:14px;}\n.dshws-h3{font-size:13px;}\n.dshws-p{margin:3px 0;}\n.dshws-code{background:rgba(127,127,127,.1);border:1px solid rgba(127,127,127,.22);border-radius:8px;padding:8px 10px;overflow-x:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;margin:6px 0;white-space:pre-wrap;}\n.dshws-inline-code{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;background:rgba(127,127,127,.16);padding:1px 5px;border-radius:4px;}\n.dshws-ul{margin:3px 0 3px 18px;padding:0;}\n.dshws-a{color:#4c7dff;text-decoration:none;}\n.dshws-a:hover{text-decoration:underline;}\n.dsws-sidebar-icon{font-size:15px;line-height:1;display:inline-flex;align-items:center;}\ndiv[class*="_collapsed"] .dsws-sidebar-label{display:none;}\n'
+const CSS = '\n.dshws-root{display:flex;flex-direction:column;font-size:13px;line-height:1.5;color:inherit;min-height:0;}\n.dshws-tab{height:100%;}\n.dshws-overlay{position:fixed;top:20px;right:20px;bottom:20px;width:min(760px,calc(100vw - 40px));background:#fff;border:1px solid rgba(127,127,127,.35);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.25);z-index:1000;pointer-events:auto;overflow:hidden;color:#1f2328;}\n@media (prefers-color-scheme: dark){.dshws-overlay{background:#16181d;color:#e6e6e6;}}\n.dshws-header{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid rgba(127,127,127,.25);flex:0 0 auto;}\n.dshws-title{font-weight:600;font-size:14px;white-space:nowrap;}\n.dshws-sub{opacity:.65;font-size:11px;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}\n.dshws-close{border:none;background:transparent;cursor:pointer;font-size:13px;color:inherit;opacity:.7;padding:4px 8px;border-radius:6px;}\n.dshws-close:hover{opacity:1;background:rgba(127,127,127,.15);}\n.dshws-body{display:flex;flex-direction:column;min-height:0;flex:1 1 auto;overflow:hidden;}\n.dshws-toolbar{display:flex;gap:8px;align-items:center;padding:10px 14px;flex:0 0 auto;flex-wrap:wrap;}\n.dshws-search{flex:1 1 200px;min-width:140px;padding:6px 10px;border-radius:8px;border:1px solid rgba(127,127,127,.4);background:rgba(127,127,127,.08);color:inherit;font-size:13px;outline:none;}\n.dshws-search:focus{border-color:rgba(64,120,255,.7);}\n.dshws-scope{padding:6px 8px;border-radius:8px;border:1px solid rgba(127,127,127,.4);background:rgba(127,127,127,.08);color:inherit;font-size:13px;}\n.dshws-sorts{display:flex;gap:4px;}\n.dshws-sort{padding:6px 12px;border-radius:8px;border:1px solid rgba(127,127,127,.4);background:rgba(127,127,127,.08);color:inherit;font-size:12px;cursor:pointer;}\n.dshws-sort.dshws-active{background:rgba(64,120,255,.18);border-color:rgba(64,120,255,.7);font-weight:600;}\n.dshws-check{display:inline-flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;white-space:nowrap;}\n.dshws-tokenrow{display:flex;gap:8px;align-items:center;padding:0 14px 8px;flex-wrap:wrap;}\n.dshws-note{font-size:11px;opacity:.7;padding:2px 14px 0;flex:0 0 auto;}\n.dshws-list{flex:1 1 auto;overflow-y:auto;padding:4px 14px 14px;display:flex;flex-direction:column;gap:8px;min-height:0;}\n.dshws-card{display:flex;gap:10px;padding:10px;border:1px solid rgba(127,127,127,.25);border-radius:10px;cursor:pointer;background:rgba(127,127,127,.04);}\n.dshws-card:hover{border-color:rgba(64,120,255,.6);background:rgba(64,120,255,.07);}\n.dshws-avatar{width:34px;height:34px;border-radius:8px;flex:0 0 auto;object-fit:cover;background:rgba(127,127,127,.2);}\n.dshws-avatar-lg{width:40px;height:40px;}\n.dshws-card-body{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 auto;}\n.dshws-card-title{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}\n.dshws-card-desc{font-size:12px;opacity:.75;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}\n.dshws-card-meta{display:flex;gap:6px;flex-wrap:wrap;}\n.dshws-pill{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(127,127,127,.14);white-space:nowrap;}\n.dshws-pill.dshws-muted{opacity:.7;}\n.dshws-badge-installed{background:rgba(46,160,67,.16);color:#2ea043;}\n.dshws-status{padding:14px;font-size:12px;opacity:.8;}\n.dshws-error{padding:14px;font-size:12px;color:#d64545;}\n.dshws-back{align-self:flex-start;margin:10px 14px 0;padding:5px 12px;border-radius:8px;border:1px solid rgba(127,127,127,.4);background:transparent;color:inherit;cursor:pointer;font-size:12px;}\n.dshws-detail{overflow-y:auto;padding-bottom:14px;}\n.dshws-detail-head{padding:4px 14px 0;display:flex;flex-direction:column;gap:8px;}\n.dshws-detail-title{font-size:16px;font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}\n.dshws-link{color:#4c7dff;text-decoration:none;font-size:12px;font-weight:400;}\n.dshws-link:hover{text-decoration:underline;}\n.dshws-section{padding:10px 14px;}\n.dshws-section-label{font-size:11px;font-weight:700;text-transform:uppercase;opacity:.6;letter-spacing:.05em;margin-bottom:6px;}\n.dshws-install{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:rgba(127,127,127,.12);border:1px solid rgba(127,127,127,.25);border-radius:8px;padding:10px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;margin:0;}\n.dshws-footer{display:flex;align-items:center;gap:12px;padding:8px 14px;border-top:1px solid rgba(127,127,127,.2);font-size:11px;opacity:.85;flex:0 0 auto;}\n.dshws-muted{opacity:.7;}\n.dshws-loadmore{margin-left:auto;padding:5px 14px;border-radius:8px;border:1px solid rgba(64,120,255,.6);background:transparent;color:#4c7dff;cursor:pointer;font-size:12px;}\n.dshws-loadmore:hover{background:rgba(64,120,255,.12);}\n.dshws-loadmore:disabled{opacity:.5;cursor:default;}\n.dshws-mini{font-size:11px;color:#4c7dff;background:transparent;border:1px solid rgba(64,120,255,.5);border-radius:6px;padding:2px 8px;cursor:pointer;}\n.dshws-mini:hover{background:rgba(64,120,255,.12);}\n.dshws-mini-on{background:rgba(64,120,255,.18);border-color:rgba(64,120,255,.7);font-weight:600;}\n.dshws-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;border:1px solid rgba(127,127,127,.45);background:transparent;color:inherit;cursor:pointer;font-size:13px;}\n.dshws-btn:hover{background:rgba(127,127,127,.1);}\n.dshws-btn-primary{background:#2d6cdf;border-color:#2d6cdf;color:#fff;}\n.dshws-btn-primary:hover{background:#255cbf;}\n.dshws-btn:disabled{opacity:.55;cursor:default;}\n.dshws-btn-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}\n.dshws-ok{color:#2ea043;font-size:12px;}\n.dshws-md{font-size:12.5px;line-height:1.6;word-break:break-word;}\n.dshws-h{font-weight:700;margin:10px 0 4px;}\n.dshws-h1{font-size:15px;border-bottom:1px solid rgba(127,127,127,.25);padding-bottom:4px;}\n.dshws-h2{font-size:14px;}\n.dshws-h3{font-size:13px;}\n.dshws-p{margin:3px 0;}\n.dshws-code{background:rgba(127,127,127,.1);border:1px solid rgba(127,127,127,.22);border-radius:8px;padding:8px 10px;overflow-x:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;margin:6px 0;white-space:pre-wrap;}\n.dshws-inline-code{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;background:rgba(127,127,127,.16);padding:1px 5px;border-radius:4px;}\n.dshws-ul{margin:3px 0 3px 18px;padding:0;}\n.dshws-a{color:#4c7dff;text-decoration:none;}\n.dshws-a:hover{text-decoration:underline;}\n.dsws-sidebar-icon{font-size:15px;line-height:1;display:inline-flex;align-items:center;}\ndiv[class*="_collapsed"] .dsws-sidebar-label{display:none;}\n'
 
 function injectStyles() {
   if (typeof document === 'undefined') return

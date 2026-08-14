@@ -1,7 +1,7 @@
 {
   "name": "@dsh-external/dsh-plugin-workshop",
   "description": "dsh web 插件：插件工坊（Steam 创意工坊式 DSH 插件浏览/搜索/排序/详情，侧栏「新会话」下方常驻入口）",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
