@@ -1,5 +1,5 @@
 /**
- * dsh-plugin-workshop（浏览器端源码）v1.1.1
+ * dsh-plugin-workshop（浏览器端源码）v1.2.0
  *
  * 常驻版插件工坊：
  * - 侧栏「新会话」按钮正下方克隆一个同规格「插件工坊」按钮（DOM 克隆官方按钮，
@@ -443,6 +443,26 @@ if (React !== null) {
         setErrI(String((e && e.message) || e))
       })
     }
+    function doUninstall() {
+      setBusyI(true)
+      setMsgI(null)
+      setErrI(null)
+      apiFetch(HOST_API + '/uninstall?full_name=' + encodeURIComponent(m.full_name)).then(function (got) {
+        setBusyI(false)
+        const d = got && got.data
+        if (d && d.ok) {
+          setMsgI('已卸载' + (d.note ? '：' + d.note : ''))
+          if (props.onInstalledChanged) props.onInstalledChanged()
+        } else if (d && d.error) {
+          setErrI(d.error)
+        } else {
+          setErrI('卸载接口异常（HTTP ' + (got && got.status) + '）')
+        }
+      }).catch(function (e) {
+        setBusyI(false)
+        setErrI(String((e && e.message) || e))
+      })
+    }
     const readmeToggle = zhR
       ? el('span', null,
           el('button', { className: 'dshws-mini' + (viewR === 'orig' ? ' dshws-mini-on' : ''), onClick: function () { setViewR('orig') } }, '原文'),
@@ -482,6 +502,7 @@ if (React !== null) {
         el('div', { className: 'dshws-btn-row' },
           el('button', { className: 'dshws-btn' + (props.installed ? '' : ' dshws-btn-primary'), disabled: busyI || (props.envInfo && props.envInfo.git === false), onClick: function () { doInstall() } },
             busyI ? '处理中\u2026' : (props.installed ? '\u2b06 更新到最新' : '\u2b07 一键安装（订阅）')),
+          props.installed ? el('button', { className: 'dshws-btn', disabled: busyI, onClick: function () { doUninstall() } }, '\u274c 卸载') : null,
           msgI ? el('span', { className: 'dshws-ok' }, msgI) : null,
           errI ? el('span', { className: 'dshws-error', style: { padding: 0 } }, '\u26a0 ' + errI) : null,
         ),
@@ -537,6 +558,7 @@ if (React !== null) {
     const [now, setNow] = React.useState(Date.now())
     const [envInfo, setEnvInfo] = React.useState(null)
     const [installedList, setInstalledList] = React.useState([])
+    const [patchRows, setPatchRows] = React.useState([])
 
     function buildQ(kw) {
       let searchKw = kw
@@ -651,6 +673,7 @@ if (React !== null) {
         if (d && d.ok) {
           setEnvInfo({ git: !!d.git, dir: typeof d.dir === 'string' ? d.dir : '' })
           setInstalledList(Array.isArray(d.list) ? d.list : [])
+          setPatchRows(Array.isArray(d.rows) ? d.rows : [])
         } else {
           setEnvInfo({ git: null, dir: '' })
         }
@@ -659,7 +682,8 @@ if (React !== null) {
 
     function isInstalled(name) {
       const target = String(name || '').toLowerCase()
-      return installedList.some(function (d) { return String(d).toLowerCase() === target })
+      if (installedList.some(function (d) { return String(d).toLowerCase() === target })) return true
+      return patchRows.some(function (r) { return String(r && r.id).toLowerCase() === target })
     }
 
     function loadMore() {
