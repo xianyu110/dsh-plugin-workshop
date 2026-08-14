@@ -12,7 +12,7 @@ A **Steam Workshop-style plugin browser** for [DeepSeek Harness](https://github.
 - **Search & sorting**: keyword search (Chinese input auto-mapped to English keywords), ★ hottest / ⏰ newest, and **trending time windows** (repos created in the last 7/30/90 days sorted by stars — the closest GitHub-API approximation of Steam's Trending)
 - **DSH plugins only by default**: the "Plugin topic" scope (`topic:dsh-plugin`); the whole-site mode includes **plugin-signature verification** (checks `package.json` `dsh` field / `cordis.yml` etc. via the raw CDN — costs no API quota) and filters out unrelated repos by default
 - **Bilingual experience**: one-click switch between original / machine-translated Chinese descriptions; README can be fully translated (Google Translate endpoint, cached)
-- **One-click install & update**: `git clone` / `git pull` into `.agent-presets` via a same-origin host API. Git availability is detected up front — if git is missing, the UI shows a clear notice instead of failing silently
+- **Smart one-click install / uninstall**: repo type is auto-detected — bundle-type (package.json declares `dsh.*`) installs via the official `dsh plugin add` flow plus an auto-written profile activation row; preset-type is copied into `.agent-presets`. Uninstall reverses the install path (removes the activation row + `pnpm remove`, or deletes the directory); missing git is reported with clear guidance
 - **Detail page**: stars/forks/language/license/created time, lightweight README rendering (headings/bold/code/lists/links), manual install command, GitHub link
 - **Quota transparency**: live GitHub search rate-limit remaining + recovery countdown; optional GitHub Token (30 req/min, stored in the local browser only)
 - **Zero-server**: all data comes from the GitHub search API (browser-direct, CORS) + raw.githubusercontent.com (verification & README)
@@ -43,12 +43,12 @@ After activation, the "🧩 插件工坊" button appears under "New Session" in 
 | Trending | Time dropdown: 7/30/90-day windows + ★ hottest |
 | Search in Chinese | Type Chinese words like 天气 / 翻译 — auto-mapped to English keywords |
 | Read Chinese descriptions | Toolbar "描述中文"; detail page "翻译 README" |
-| Install / update | Detail page buttons — needs git on the machine (warned otherwise) |
+| Install / update / uninstall | Detail page buttons, install path chosen by repo type (needs git, warned otherwise) |
 | Raise search quota | Toolbar ⚙ → paste a GitHub Personal Access Token |
 
 ## 🏗️ Architecture
 
-- **Host half** (`lib/index.js`): registers same-origin HTTP routes on the `webServer` service — `/dsh-plugin-workshop/api/{status,install,update}` — running `git` against `.agent-presets` with strict input validation and a custom-header CSRF guard
+- **Host half** (`lib/index.js`): registers same-origin HTTP routes on the `webServer` service — `/dsh-plugin-workshop/api/{status,install,update,uninstall}` — smart install (bundle/preset type detection) and reverse uninstall with strict input validation and a custom-header CSRF guard
 - **Client half** (`lib/client.js`): React over platform seed modules; DOM-clones the official sidebar button with a MutationObserver self-heal; mounts the workshop in `shell.overlay` and `settings.plugins.tab`
 - **Data flow**: GitHub search API (10 req/min anonymous) → signature verification & README via raw CDN (no quota) → machine translation via Google gtx
 - **Security**: no third-party code is executed by the browser half; installs only write under `.agent-presets`; the Token lives in localStorage only
@@ -56,6 +56,7 @@ After activation, the "🧩 插件工坊" button appears under "New Session" in 
 ## 🗺️ Roadmap
 
 - [x] v1.1 One-click install / update (host API: git detection, clone/pull into `.agent-presets`)
+- [x] v1.2 Smart install / uninstall: bundle-type via official `dsh plugin add` + activation row, preset-type via `.agent-presets`, uninstall reverses the path (tested end-to-end)
 - [ ] Installed-plugin management page
 - [ ] Community index exposure (awesome-dsh-plugin / awesome-dsh-plugins / awesome-deepseek-harness — PRs open)
 
