@@ -647,6 +647,9 @@ if (React !== null) {
           qnote = '按原始中文关键词搜索；可尝试英文关键词获得更多结果'
         }
       }
+      // owner/name 形式 → 只留仓库名（GitHub 搜索对完整路径形式的匹配更可靠）
+      const slash = /^[\w.-]+\/([\w.-]+)$/.exec(String(searchKw || '').trim())
+      if (slash) searchKw = slash[1]
       let q = scope === 'topic'
         ? (searchKw ? searchKw + ' ' + TOPIC_Q : TOPIC_Q)
         : (searchKw || 'deepseek harness')
@@ -658,6 +661,19 @@ if (React !== null) {
         qnote = qnote ? qnote + '（搜索时已自动展示全部时间）' : '搜索时已自动展示全部时间（忽略时间窗口）'
       }
       return { q: q, note: qnote }
+    }
+
+    // 多词查询 0 结果时的回退词：「owner repo-name」→ 末词（仅当末词像仓库名且含 -_. 连接符）
+    function fallbackKw(kw) {
+      const tokens = String(kw || '').trim().split(/\s+/)
+      if (tokens.length < 2) return null
+      const first = tokens[0]
+      const last = tokens[tokens.length - 1]
+      if (!/^[a-z0-9][a-z0-9._-]*$/i.test(last)) return null
+      if (!/[-_.]/.test(last)) return null
+      if (!/^[a-z0-9][a-z0-9._-]*$/i.test(first)) return null
+      if (first.toLowerCase() === last.toLowerCase()) return null
+      return last
     }
 
     React.useEffect(function () {
@@ -672,6 +688,21 @@ if (React !== null) {
         if (built.note) setNote(built.note)
         searchCatalog(built.q, sort, 1).then(function (res) {
           if (!alive) return
+          // 多词查询 0 结果 → 尝试按末词仓库名重试（如「owner repo-name」）
+          const fb = res.items.length === 0 ? fallbackKw(kw) : null
+          if (fb) {
+            const built2 = buildQ(fb)
+            setNote('按仓库名 \u201c' + fb + '\u201d 重试（原查询无结果）')
+            return searchCatalog(built2.q, sort, 1).then(function (res2) {
+              if (!alive) return
+              setItems(res2.items)
+              setTotal(res2.total)
+              setPage(1)
+              setHasMore(res2.total > 24)
+              if (res2.remaining !== null && res2.remaining !== undefined) setRemaining(res2.remaining)
+              setError(null)
+            })
+          }
           setItems(res.items)
           setTotal(res.total)
           setPage(1)
