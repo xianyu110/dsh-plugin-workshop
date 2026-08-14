@@ -12,7 +12,7 @@ DeepSeek Harness（DSH）的**创意工坊式插件浏览器**——零服务器
 - **搜索与排序**：关键词搜索（支持中文，自动映射英文）、★最热 / ⏰最新、**飙升榜时间窗口**（近 7/30/90 天新建 + 热度排序，Steam Trending 近似）
 - **默认只搜 DSH 插件**：默认「插件话题」（`topic:dsh-plugin`）；全站模式自带**插件特征验证**（检查 `package.json` 的 `dsh` 字段 / `cordis.yml` 等，走 raw CDN 不耗 API 额度），默认过滤无关仓库
 - **双语体验**：描述一键切换原文/中文机翻，README 可整篇翻译（Google 翻译接口，自动缓存）
-- **智能一键安装/卸载**：自动识别仓库类型——bundle 型（`package.json` 声明 `dsh.*`）走官方 `dsh plugin add`；若包声明 `dsh.bundle.patch` 则由 DSH 自动加入 profile bundles（补丁层自动激活），旧版包自动补写激活行；nested 型（恰好一个子目录是 dsh 包，如皮肤合集 monorepo）本地副本 + `link:` 子包；preset 型拷入 `.agent-presets`。卸载按安装方式逆向清理；缺 git 时界面明确提示
+- **智能一键安装/卸载**：自动识别仓库类型——bundle 型（`package.json` 声明 `dsh.*`）走官方 `dsh plugin add`；若包声明 `dsh.bundle.patch` 则由 DSH 自动加入 profile bundles（补丁层自动激活），旧版包自动补写激活行；nested 型（恰好一个子目录是 dsh 包，如皮肤合集 monorepo）本地副本 + `link:` 子包；preset 型拷入 `.agent-presets`。卸载按安装方式逆向清理（pnpm remove 失败则不动文件、不留失效链接；成功后自动重启 dsh web 刷新插件表）；缺 git 时界面明确提示
 - **详情页**：星数/fork/语言/许可证/创建时间、README 轻量渲染、手动安装命令、GitHub 直达
 - **额度透明**：实时显示 GitHub 搜索剩余额度与恢复倒计时；可选填 GitHub Token（30 次/分，仅存本机浏览器）
 - **零服务器**：数据全部来自 GitHub 搜索 API（浏览器直连，CORS）+ raw.githubusercontent.com（特征验证与 README）
