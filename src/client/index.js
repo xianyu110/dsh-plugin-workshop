@@ -651,7 +651,12 @@ if (React !== null) {
         ? (searchKw ? searchKw + ' ' + TOPIC_Q : TOPIC_Q)
         : (searchKw || 'deepseek harness')
       for (let i = 0; i < DENY_REPOS.length; i++) q += ' -repo:' + DENY_REPOS[i]
-      if (when !== 'all' && WHEN_DAYS[when]) q += ' created:>=' + windowDate(WHEN_DAYS[when])
+      // 搜索关键词时自动忽略时间窗口：找具体插件不应被「近 7 天」限制；
+      // 无关键词浏览时保留时间窗口（默认飙升榜）。
+      if (!searchKw && when !== 'all' && WHEN_DAYS[when]) q += ' created:>=' + windowDate(WHEN_DAYS[when])
+      if (searchKw && when !== 'all') {
+        qnote = qnote ? qnote + '（搜索时已自动展示全部时间）' : '搜索时已自动展示全部时间（忽略时间窗口）'
+      }
       return { q: q, note: qnote }
     }
 
@@ -832,7 +837,7 @@ if (React !== null) {
       hiddenCount = items.length - visible.length
     }
     const countdown = rateReset !== null ? Math.max(0, Math.ceil(rateReset - now / 1000)) : null
-    const whenText = when === 'all' ? '' : ' \u00b7 ' + WHEN_LABEL[when]
+    const whenText = query.trim() ? ' \u00b7 全部时间' : (when === 'all' ? '' : ' \u00b7 ' + WHEN_LABEL[when])
 
     const viewTabs = el('span', { className: 'dshws-sorts' },
       el('button', { className: 'dshws-sort' + (view === 'search' ? ' dshws-active' : ''), onClick: function () { setView('search') } }, '\uD83D\uDD0D 搜索'),
