@@ -12,7 +12,7 @@ DeepSeek Harness（DSH）的**创意工坊式插件浏览器**——零服务器
 - **搜索与排序**：关键词搜索（支持中文，自动映射英文）、★最热 / ⏰最新、**飙升榜时间窗口**（近 7/30/90 天新建 + 热度排序，Steam Trending 近似）
 - **默认只搜 DSH 插件**：默认「插件话题」（`topic:dsh-plugin`）；全站模式自带**插件特征验证**（检查 `package.json` 的 `dsh` 字段 / `cordis.yml` 等，走 raw CDN 不耗 API 额度），默认过滤无关仓库
 - **双语体验**：描述一键切换原文/中文机翻，README 可整篇翻译（Google 翻译接口，自动缓存）
-- **智能一键安装/卸载**：自动识别仓库类型——bundle 型（`package.json` 声明 `dsh.*`）走官方 `dsh plugin add` + 自动写 profile 激活行；preset 型拷入 `.agent-presets`。卸载按安装方式逆向清理（删激活行 + pnpm remove / 删目录）；缺 git 时界面明确提示
+- **智能一键安装/卸载**：自动识别仓库类型——bundle 型（`package.json` 声明 `dsh.*`）走官方 `dsh plugin add`；若包声明 `dsh.bundle.patch` 则由 DSH 自动加入 profile bundles（补丁层自动激活），旧版包自动补写激活行；nested 型（恰好一个子目录是 dsh 包，如皮肤合集 monorepo）本地副本 + `link:` 子包；preset 型拷入 `.agent-presets`。卸载按安装方式逆向清理；缺 git 时界面明确提示
 - **详情页**：星数/fork/语言/许可证/创建时间、README 轻量渲染、手动安装命令、GitHub 直达
 - **额度透明**：实时显示 GitHub 搜索剩余额度与恢复倒计时；可选填 GitHub Token（30 次/分，仅存本机浏览器）
 - **零服务器**：数据全部来自 GitHub 搜索 API（浏览器直连，CORS）+ raw.githubusercontent.com（特征验证与 README）
@@ -22,16 +22,20 @@ DeepSeek Harness（DSH）的**创意工坊式插件浏览器**——零服务器
 以 web profile 为例：
 
 ```bash
-# 1. 把本包加入 profile 依赖（dsh plugin 即转发给 pnpm）
+# 一条命令即可：本包在 package.json 声明了 dsh.bundle.patch，
+# dsh plugin add 会自动把它加入 profile 的 dsh.profile.bundles，
+# 启动时其 cordis.patch.yml 作为 bundle 补丁层自动激活，无需手改配置。
 dsh plugin --profile web add "github:yyyyukari/dsh-plugin-workshop"
 
-# 2. 在 $DSH_HOME/profiles/web/cordis.patch.yml 添加激活行：
-#    - insert:
-#        - id: plugin-workshop
-#          name: '@dsh-external/dsh-plugin-workshop'
-
-# 3. 重启 dsh web 并刷新浏览器
+# 重启 dsh web 并刷新浏览器
 ```
+
+> 手动接入旧流程：把本包加进 profile dependencies，并在 `$DSH_HOME/profiles/web/cordis.patch.yml` 添加：
+> ```yaml
+> - insert:
+>     - id: plugin-workshop
+>       name: '@dsh-external/dsh-plugin-workshop'
+> ```
 
 激活后侧栏「新会话」下方出现「🧩 插件工坊」，点击打开浮层；设置 → 插件 区也有「插件工坊」标签页。
 
@@ -57,6 +61,7 @@ dsh plugin --profile web add "github:yyyyukari/dsh-plugin-workshop"
 
 - [x] v1.1 一键安装/更新（宿主 API：git 探测、clone/pull 到 `.agent-presets`，缺失时界面提示）
 - [x] v1.2 智能安装/卸载：bundle 型走官方 `dsh plugin add` + 激活行，preset 型走 `.agent-presets`，卸载逆向清理（实测通过）
+- [x] v1.3 遵循 DSH bundle 规范：`package.json` 声明 `dsh.bundle.patch`（`dsh plugin add` 一条命令自动激活）；智能安装兼容三种仓库形态（bundle / nested / preset）
 - [ ] 已安装插件管理页
 - [ ] 社区索引收录（awesome-dsh-plugin / awesome-dsh-plugins / awesome-deepseek-harness，PR 已提交待合并）
 

@@ -12,7 +12,7 @@ A **Steam Workshop-style plugin browser** for [DeepSeek Harness](https://github.
 - **Search & sorting**: keyword search (Chinese input auto-mapped to English keywords), ★ hottest / ⏰ newest, and **trending time windows** (repos created in the last 7/30/90 days sorted by stars — the closest GitHub-API approximation of Steam's Trending)
 - **DSH plugins only by default**: the "Plugin topic" scope (`topic:dsh-plugin`); the whole-site mode includes **plugin-signature verification** (checks `package.json` `dsh` field / `cordis.yml` etc. via the raw CDN — costs no API quota) and filters out unrelated repos by default
 - **Bilingual experience**: one-click switch between original / machine-translated Chinese descriptions; README can be fully translated (Google Translate endpoint, cached)
-- **Smart one-click install / uninstall**: repo type is auto-detected — bundle-type (package.json declares `dsh.*`) installs via the official `dsh plugin add` flow plus an auto-written profile activation row; preset-type is copied into `.agent-presets`. Uninstall reverses the install path (removes the activation row + `pnpm remove`, or deletes the directory); missing git is reported with clear guidance
+- **Smart one-click install / uninstall**: repo type is auto-detected — bundle-type (package.json declares `dsh.*`) installs via the official `dsh plugin add` flow; packages that declare `dsh.bundle.patch` are auto-added to the profile's `dsh.profile.bundles` by DSH itself (patch layer auto-activates, zero config), while legacy packages get an auto-written activation row; nested-type (exactly one subdirectory is a dsh package — skin collections / monorepos) gets a local copy + `link:` to the subpackage; preset-type is copied into `.agent-presets`. Uninstall reverses the install path; missing git is reported with clear guidance
 - **Detail page**: stars/forks/language/license/created time, lightweight README rendering (headings/bold/code/lists/links), manual install command, GitHub link
 - **Quota transparency**: live GitHub search rate-limit remaining + recovery countdown; optional GitHub Token (30 req/min, stored in the local browser only)
 - **Zero-server**: all data comes from the GitHub search API (browser-direct, CORS) + raw.githubusercontent.com (verification & README)
@@ -22,16 +22,21 @@ A **Steam Workshop-style plugin browser** for [DeepSeek Harness](https://github.
 For the web profile:
 
 ```bash
-# 1. Add this package to the profile's dependencies (dsh plugin forwards to pnpm)
+# One command is enough: this package declares dsh.bundle.patch in its
+# package.json, so `dsh plugin add` auto-adds it to the profile's
+# dsh.profile.bundles and its cordis.patch.yml is applied as a bundle
+# patch layer on boot — no manual config.
 dsh plugin --profile web add "github:yyyyukari/dsh-plugin-workshop"
 
-# 2. Add the activation row to $DSH_HOME/profiles/web/cordis.patch.yml:
-#    - insert:
-#        - id: plugin-workshop
-#          name: '@dsh-external/dsh-plugin-workshop'
-
-# 3. Restart dsh web and refresh the browser
+# Restart dsh web and refresh the browser
 ```
+
+> Legacy manual flow: add the package to the profile dependencies, then add to `$DSH_HOME/profiles/web/cordis.patch.yml`:
+> ```yaml
+> - insert:
+>     - id: plugin-workshop
+>       name: '@dsh-external/dsh-plugin-workshop'
+> ```
 
 After activation, the "🧩 插件工坊" button appears under "New Session" in the sidebar; the workshop also lives in Settings → Plugins as a tab.
 
@@ -57,6 +62,7 @@ After activation, the "🧩 插件工坊" button appears under "New Session" in 
 
 - [x] v1.1 One-click install / update (host API: git detection, clone/pull into `.agent-presets`)
 - [x] v1.2 Smart install / uninstall: bundle-type via official `dsh plugin add` + activation row, preset-type via `.agent-presets`, uninstall reverses the path (tested end-to-end)
+- [x] v1.3 DSH bundle compliance: `dsh.bundle.patch` declared in package.json (one-command auto-activation via `dsh plugin add`); smart install covers all three repo shapes (bundle / nested / preset)
 - [ ] Installed-plugin management page
 - [ ] Community index exposure (awesome-dsh-plugin / awesome-dsh-plugins / awesome-deepseek-harness — PRs open)
 
