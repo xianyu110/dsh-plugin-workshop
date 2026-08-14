@@ -1,11 +1,14 @@
 /**
- * dsh-plugin-workshop（浏览器端源码）v1.3.0
+ * dsh-plugin-workshop（浏览器端源码）v1.4.0
  *
  * 常驻版插件工坊：
  * - 侧栏「新会话」按钮正下方克隆一个同规格「插件工坊」按钮（DOM 克隆官方按钮，
  *   样式/大小与官方完全一致，MutationObserver 保证重建后自动恢复）；
  * - shell.overlay 浮层 + 设置→插件 标签页承载工坊界面（React）；
  * - 默认只搜 DSH 插件话题（topic:dsh-plugin），空结果提供「去全站搜索」；
+ * - 搜索结果排除官方 harness 等核心仓库（查询级 -repo: 过滤，不再占据榜首）；
+ * - 「已安装」视图：合并 profile 依赖/激活行/.agent-presets 展示本机插件，
+ *   可一键更新（pnpm update / git pull）与卸载（自动重启刷新插件表）；
  * - 时间窗口飙升榜：近 7/30/90 天新建 + 按热度排序（Steam Trending 近似）；
  * - 数据全部走浏览器 fetch：GitHub 搜索 API（CORS 直连），
  *   插件特征验证走 raw.githubusercontent.com（不消耗 API 额度）；
@@ -71,6 +74,8 @@ async function rawFetch(url) {
 const TOPIC_Q = 'topic:dsh-plugin'
 const WHEN_DAYS = { '7d': 7, '30d': 30, '90d': 90 }
 const WHEN_LABEL = { '7d': '近7天飙升', '30d': '近30天飙升', '90d': '近90天飙升' }
+// 搜索结果排除名单：官方核心仓库自带 dsh-plugin 话题、星数碾压插件榜，不属插件。
+const DENY_REPOS = ['deepseek-ai/deepseek-harness']
 function windowDate(days) {
   return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
 }
@@ -520,6 +525,72 @@ if (React !== null) {
     )
   }
 
+  function InstalledView(props) {
+    const entries = props.entries || []
+    const [busyKey, setBusyKey] = React.useState(null)
+    const [msg, setMsg] = React.useState(null)
+    const [err, setErr] = React.useState(null)
+    const KIND_LABEL = { bundle: 'bundle 包', nested: '嵌套包', preset: '预设' }
+    function action(entry, api) {
+      const key = entry.key
+      const qs = entry.full
+        ? 'full_name=' + encodeURIComponent(entry.full)
+        : (entry.pkgName ? 'name=' + encodeURIComponent(entry.pkgName) : 'repo=' + encodeURIComponent(entry.repo || entry.key))
+      setBusyKey(key)
+      setMsg(null)
+      setErr(null)
+      apiFetch(HOST_API + api + '?' + qs).then(function (got) {
+        setBusyKey(null)
+        const d = got && got.data
+        if (d && d.ok) {
+          setMsg((api === '/uninstall' ? '已卸载' : '已更新') + (d.note ? '：' + d.note : ''))
+          if (props.onChanged) props.onChanged()
+        } else if (d && d.error) {
+          setErr(d.error)
+        } else {
+          setErr('宿主机接口异常（HTTP ' + (got && got.status) + '）')
+        }
+      }).catch(function (e) {
+        setBusyKey(null)
+        setErr(String((e && e.message) || e))
+      })
+    }
+    if (!entries.length) {
+      return el('div', { className: 'dshws-body' },
+        el('div', { className: 'dshws-status' }, props.gitReady === false ? '未检测到 git，无法管理安装' : '本机还没有安装任何插件。去「搜索」页一键安装吧。'),
+      )
+    }
+    return el('div', { className: 'dshws-body' },
+      props.tabs ? el('div', { className: 'dshws-toolbar' }, props.tabs) : null,
+      msg ? el('div', { className: 'dshws-ok', style: { padding: '2px 14px' } }, msg) : null,
+      err ? el('div', { className: 'dshws-error', style: { padding: '2px 14px' } }, '\u26a0 ' + err) : null,
+      entries.map(function (e) {
+        const title = e.full || e.pkgName || e.repo || e.key
+        const busy = busyKey === e.key
+        const activeBadge = e.kind === 'preset'
+          ? el('span', { className: 'dshws-pill dshws-muted' }, '未激活')
+          : (e.active
+              ? el('span', { className: 'dshws-pill dshws-badge-installed' }, '\u2713 已激活')
+              : el('span', { className: 'dshws-pill dshws-muted' }, '待重启生效'))
+        return el('div', { className: 'dshws-card', key: e.key, style: { cursor: 'default' } },
+          el('div', { className: 'dshws-card-body' },
+            el('div', { className: 'dshws-card-title', title: title }, title),
+            el('div', { className: 'dshws-card-meta' },
+              el('span', { className: 'dshws-pill' }, KIND_LABEL[e.kind] || e.kind),
+              activeBadge,
+              e.hasLocal ? el('span', { className: 'dshws-pill dshws-muted' }, '本地副本') : null,
+              e.spec ? el('span', { className: 'dshws-pill dshws-muted', title: e.spec }, e.spec.slice(0, 40) + (e.spec.length > 40 ? '\u2026' : '')) : null,
+            ),
+            el('div', { className: 'dshws-btn-row', style: { marginTop: 6 } },
+              el('button', { className: 'dshws-btn dshws-btn-primary', disabled: busy || props.gitReady === false, onClick: function () { action(e, '/update') } }, busy ? '处理中\u2026' : '\u2b06 更新'),
+              el('button', { className: 'dshws-btn', disabled: busy, onClick: function () { action(e, '/uninstall') } }, '\u274c 卸载'),
+            ),
+          ),
+        )
+      }),
+    )
+  }
+
   function useOpen() {
     const [snap, setSnap] = React.useState(store.isOpen())
     React.useEffect(function () {
@@ -560,6 +631,8 @@ if (React !== null) {
     const [installedList, setInstalledList] = React.useState([])
     const [patchRows, setPatchRows] = React.useState([])
     const [deps, setDeps] = React.useState([])
+    const [view, setView] = React.useState('search')
+    const [installed, setInstalled] = React.useState([])
 
     function buildQ(kw) {
       let searchKw = kw
@@ -577,6 +650,7 @@ if (React !== null) {
       let q = scope === 'topic'
         ? (searchKw ? searchKw + ' ' + TOPIC_Q : TOPIC_Q)
         : (searchKw || 'deepseek harness')
+      for (let i = 0; i < DENY_REPOS.length; i++) q += ' -repo:' + DENY_REPOS[i]
       if (when !== 'all' && WHEN_DAYS[when]) q += ' created:>=' + windowDate(WHEN_DAYS[when])
       return { q: q, note: qnote }
     }
@@ -676,6 +750,7 @@ if (React !== null) {
           setInstalledList(Array.isArray(d.list) ? d.list : [])
           setPatchRows(Array.isArray(d.rows) ? d.rows : [])
           setDeps(Array.isArray(d.deps) ? d.deps : [])
+          setInstalled(Array.isArray(d.installed) ? d.installed : [])
         } else {
           setEnvInfo({ git: null, dir: '' })
         }
@@ -759,10 +834,18 @@ if (React !== null) {
     const countdown = rateReset !== null ? Math.max(0, Math.ceil(rateReset - now / 1000)) : null
     const whenText = when === 'all' ? '' : ' \u00b7 ' + WHEN_LABEL[when]
 
+    const viewTabs = el('span', { className: 'dshws-sorts' },
+      el('button', { className: 'dshws-sort' + (view === 'search' ? ' dshws-active' : ''), onClick: function () { setView('search') } }, '\uD83D\uDD0D 搜索'),
+      el('button', { className: 'dshws-sort' + (view === 'installed' ? ' dshws-active' : ''), onClick: function () { setView('installed'); refreshInstalled() } }, '\uD83D\uDCE6 已安装' + (installed.length ? ' (' + installed.length + ')' : '')),
+    )
+
     const content = detail
       ? el(DetailView, { detail: detail, onBack: function () { setDetail(null) }, desc: descOf(detail.data), installed: detail && detail.data ? isInstalled(String(detail.data.full_name)) : false, envInfo: envInfo, onInstalledChanged: refreshInstalled })
-      : el('div', { className: 'dshws-body' },
+      : (view === 'installed'
+          ? el(InstalledView, { entries: installed, gitReady: envInfo ? envInfo.git : null, tabs: viewTabs, onChanged: refreshInstalled })
+          : el('div', { className: 'dshws-body' },
           el('div', { className: 'dshws-toolbar' },
+            viewTabs,
             el('input', {
               className: 'dshws-search',
               placeholder: '搜索插件（支持中文关键词）\u2026',
@@ -849,7 +932,7 @@ if (React !== null) {
             remaining !== null ? el('span', { className: 'dshws-muted' }, '搜索额度剩余 ' + remaining + (countdown !== null ? ' \u00b7 恢复 ' + countdown + 's' : '')) : null,
             hasMore ? el('button', { className: 'dshws-loadmore', onClick: loadMore, disabled: loadingMore }, loadingMore ? '加载中\u2026' : '加载更多') : null,
           ),
-        )
+          ))
 
     const header = el('div', { className: 'dshws-header' },
       el('span', { className: 'dshws-title' }, '\uD83E\uDDE9 插件工坊'),

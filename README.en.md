@@ -10,7 +10,8 @@ A **Steam Workshop-style plugin browser** for [DeepSeek Harness](https://github.
 
 - **Permanent sidebar entry**: cloned under the official "New Session" button with identical styling (DOM clone of the official button, adapts to wide/rail sidebar states, survives refreshes and restarts)
 - **Search & sorting**: keyword search (Chinese input auto-mapped to English keywords), ★ hottest / ⏰ newest, and **trending time windows** (repos created in the last 7/30/90 days sorted by stars — the closest GitHub-API approximation of Steam's Trending)
-- **DSH plugins only by default**: the "Plugin topic" scope (`topic:dsh-plugin`); the whole-site mode includes **plugin-signature verification** (checks `package.json` `dsh` field / `cordis.yml` etc. via the raw CDN — costs no API quota) and filters out unrelated repos by default
+- **DSH plugins only by default**: the "Plugin topic" scope (`topic:dsh-plugin`); search results exclude the official harness and other core repos (query-level `-repo:` filter, so they no longer top the board); the whole-site mode includes **plugin-signature verification** (checks `package.json` `dsh` field / `cordis.yml` etc. via the raw CDN — costs no API quota) and filters out unrelated repos by default
+- **Installed management**: the "📦 Installed" view merges profile dependencies / activation rows / local presets to show your machine's plugins (type, active state, install source) with one-click update (pnpm update / git pull) and uninstall
 - **Bilingual experience**: one-click switch between original / machine-translated Chinese descriptions; README can be fully translated (Google Translate endpoint, cached)
 - **Smart one-click install / uninstall**: repo type is auto-detected — bundle-type (package.json declares `dsh.*`) installs via the official `dsh plugin add` flow; packages that declare `dsh.bundle.patch` are auto-added to the profile's `dsh.profile.bundles` by DSH itself (patch layer auto-activates, zero config), while legacy packages get an auto-written activation row; nested-type (exactly one subdirectory is a dsh package — skin collections / monorepos) gets a local copy + `link:` to the subpackage; preset-type is copied into `.agent-presets`. Uninstall reverses the install path (no files are touched when pnpm remove fails — no dangling links; on success dsh web restarts automatically to refresh the plugin table); missing git is reported with clear guidance
 - **Detail page**: stars/forks/language/license/created time, lightweight README rendering (headings/bold/code/lists/links), manual install command, GitHub link
@@ -63,7 +64,7 @@ After activation, the "🧩 插件工坊" button appears under "New Session" in 
 - [x] v1.1 One-click install / update (host API: git detection, clone/pull into `.agent-presets`)
 - [x] v1.2 Smart install / uninstall: bundle-type via official `dsh plugin add` + activation row, preset-type via `.agent-presets`, uninstall reverses the path (tested end-to-end)
 - [x] v1.3 DSH bundle compliance: `dsh.bundle.patch` declared in package.json (one-command auto-activation via `dsh plugin add`); smart install covers all three repo shapes (bundle / nested / preset)
-- [ ] Installed-plugin management page
+- [x] v1.4 "Installed" management view (update/uninstall, type & active state); official core repos excluded from search; uninstall hardened (no mutation on failure, auto-restart to refresh)
 - [ ] Community index exposure (awesome-dsh-plugin / awesome-dsh-plugins / awesome-deepseek-harness — PRs open)
 
 ## 📄 License
