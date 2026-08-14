@@ -1,5 +1,5 @@
 /**
- * dsh-plugin-workshop（浏览器端源码）v1.1.0
+ * dsh-plugin-workshop（浏览器端源码）v1.1.1
  *
  * 常驻版插件工坊：
  * - 侧栏「新会话」按钮正下方克隆一个同规格「插件工坊」按钮（DOM 克隆官方按钮，
@@ -37,11 +37,13 @@ const HOST_API = '/dsh-plugin-workshop/api'
 async function apiFetch(path) {
   try {
     const r = await window.fetch(path, { headers: { 'X-DSH-Workshop': '1' } })
+    let raw = ''
+    try { raw = await r.text() } catch (e) { raw = '' }
     let data = null
-    try { data = await r.json() } catch (e) { data = null }
-    return { status: r.status, data: data }
+    try { data = JSON.parse(raw) } catch (e) { data = null }
+    return { status: r.status, data: data, raw: raw }
   } catch (e) {
-    return { status: 0, data: { ok: false, error: '无法连接宿主机接口（dsh 服务未响应）' } }
+    return { status: 0, data: { ok: false, error: '无法连接宿主机接口（dsh 服务未响应）' }, raw: '' }
   }
 }
 
@@ -431,8 +433,10 @@ if (React !== null) {
         if (d && d.ok) {
           setMsgI(d.already ? '该插件已安装' : '安装成功：' + d.path + (d.note ? '（' + d.note + '）' : ''))
           if (props.onInstalledChanged) props.onInstalledChanged()
+        } else if (d && d.error) {
+          setErrI(d.error)
         } else {
-          setErrI((d && d.error) || '安装失败（HTTP ' + (got && got.status) + '）')
+          setErrI('宿主机安装接口未就绪（返回了非 JSON 内容，通常是 dsh 尚未重启到最新版）。请重启 dsh web 后再试；手动安装命令见下方。')
         }
       }).catch(function (e) {
         setBusyI(false)
@@ -472,7 +476,9 @@ if (React !== null) {
       el('div', { className: 'dshws-section' },
         props.envInfo && props.envInfo.git === false
           ? el('div', { className: 'dshws-error', style: { padding: 0, marginBottom: 8 } }, '\u26a0 本机未安装 git，一键安装不可用。请安装 Git for Windows 后重试（https://git-scm.com/download/win）。')
-          : null,
+          : (props.envInfo && props.envInfo.git === null
+              ? el('div', { className: 'dshws-error', style: { padding: 0, marginBottom: 8 } }, '\u26a0 宿主机安装接口未就绪：请重启 dsh web 到最新版后使用一键安装。')
+              : null),
         el('div', { className: 'dshws-btn-row' },
           el('button', { className: 'dshws-btn' + (props.installed ? '' : ' dshws-btn-primary'), disabled: busyI || (props.envInfo && props.envInfo.git === false), onClick: function () { doInstall() } },
             busyI ? '处理中\u2026' : (props.installed ? '\u2b06 更新到最新' : '\u2b07 一键安装（订阅）')),
@@ -645,8 +651,10 @@ if (React !== null) {
         if (d && d.ok) {
           setEnvInfo({ git: !!d.git, dir: typeof d.dir === 'string' ? d.dir : '' })
           setInstalledList(Array.isArray(d.list) ? d.list : [])
+        } else {
+          setEnvInfo({ git: null, dir: '' })
         }
-      }).catch(function () {})
+      }).catch(function () { setEnvInfo({ git: null, dir: '' }) })
     }
 
     function isInstalled(name) {
@@ -774,6 +782,7 @@ if (React !== null) {
           (note || langNote) ? el('div', { className: 'dshws-note' }, note || langNote) : null,
           verifying ? el('div', { className: 'dshws-note' }, '正在验证插件特征\u2026') : null,
           envInfo && envInfo.git === false ? el('div', { className: 'dshws-error', style: { padding: '2px 14px 0' } }, '\u26a0 未检测到 git：一键安装不可用（搜索浏览不受影响）。安装 Git for Windows 后刷新页面即可。') : null,
+          envInfo && envInfo.git === null ? el('div', { className: 'dshws-error', style: { padding: '2px 14px 0' } }, '\u26a0 宿主机安装接口未就绪：一键安装需要重启 dsh web 到最新版（搜索浏览不受影响）。') : null,
           hiddenCount > 0 ? el('div', { className: 'dshws-note' }, '已隐藏 ' + hiddenCount + ' 个未检出插件特征的仓库') : null,
           loading && items.length === 0 ? el('div', { className: 'dshws-status' }, '加载中\u2026') : null,
           error ? el('div', { className: 'dshws-error' },
