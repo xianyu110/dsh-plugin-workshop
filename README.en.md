@@ -66,7 +66,7 @@ After activation, the "🧩 插件工坊" button appears under "New Session" in 
 - [x] v1.3 DSH bundle compliance: `dsh.bundle.patch` declared in package.json (one-command auto-activation via `dsh plugin add`); smart install covers all three repo shapes (bundle / nested / preset)
 - [x] v1.4 "Installed" management view (update/uninstall, type & active state); official core repos excluded from search; uninstall hardened (no mutation on failure, auto-restart to refresh)
 - [x] v1.5 Optional stats service (Phase A): anonymous install telemetry + community install badges + real trending board (Cloudflare Worker reference implementation in `remote/`; zero impact when not deployed)
-- [x] Community index exposure: ✅ [awesome-deepseek-harness](https://github.com/0xsline/awesome-deepseek-harness) (listed + description refreshed); ⏳ awesome-dsh-plugin / awesome-dsh-plugins (PR #42 / #50 open)
+- [x] Community index exposure: ✅ listed in all three major lists — [awesome-dsh-plugin](https://awesome-dsh-plugin.com/) (UI Enhancements) / [awesome-deepseek-harness](https://github.com/0xsline/awesome-deepseek-harness) / [awesome-dsh-plugins](https://github.com/AdamPlatin123/awesome-dsh-plugins)
 
 ## 📄 License
 

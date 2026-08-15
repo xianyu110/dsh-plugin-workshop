@@ -65,7 +65,7 @@ dsh plugin --profile web add "github:yyyyukari/dsh-plugin-workshop"
 - [x] v1.3 遵循 DSH bundle 规范：`package.json` 声明 `dsh.bundle.patch`（`dsh plugin add` 一条命令自动激活）；智能安装兼容三种仓库形态（bundle / nested / preset）
 - [x] v1.4 「已安装」管理视图（更新/卸载、类型与激活状态）；搜索结果排除官方核心仓库；卸载安全化（失败不改动、自动重启刷新）
 - [x] v1.5 可选统计服务（Phase A）：匿名装机埋点 + 社区装机徽章 + 真·飙升榜（Cloudflare Worker 参考实现见 `remote/`，未部署时零影响）
-- [x] 社区索引收录：✅ [awesome-deepseek-harness](https://github.com/0xsline/awesome-deepseek-harness)（已合并收录 + 描述刷新）；⏳ awesome-dsh-plugin / awesome-dsh-plugins（PR #42 / #50 待合并）
+- [x] 社区索引收录：✅ 三大列表全部收录——[awesome-dsh-plugin](https://awesome-dsh-plugin.com/)（UI Enhancements 分类）/ [awesome-deepseek-harness](https://github.com/0xsline/awesome-deepseek-harness) / [awesome-dsh-plugins](https://github.com/AdamPlatin123/awesome-dsh-plugins)
 
 ## 📄 License
 
