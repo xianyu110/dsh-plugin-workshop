@@ -13,7 +13,7 @@ DeepSeek Harness（DSH）的**创意工坊式插件浏览器**——零服务器
 - **默认只搜 DSH 插件**：默认「插件话题」（`topic:dsh-plugin`）；搜索结果自动排除官方 harness 等核心仓库（查询级 `-repo:` 过滤，不再占据榜首）；全站模式自带**插件特征验证**（检查 `package.json` 的 `dsh` 字段 / `cordis.yml` 等，走 raw CDN 不耗 API 额度），默认过滤无关仓库
 - **已安装管理**：工具栏「📦 已安装」视图——合并 profile 依赖/激活行/本地预设展示本机插件（类型、激活状态、安装来源），一键更新（pnpm update / git pull）与卸载
 - **双语体验**：描述一键切换原文/中文机翻，README 可整篇翻译（Google 翻译接口，自动缓存）
-- **智能一键安装/卸载**：自动识别仓库类型——bundle 型（`package.json` 声明 `dsh.*`）走官方 `dsh plugin add`；若包声明 `dsh.bundle.patch` 则由 DSH 自动加入 profile bundles（补丁层自动激活），旧版包自动补写激活行；nested 型（目录树中恰好一个 dsh 包，递归查找、支持 packages/&lt;name&gt; 等多层级 monorepo 布局，如皮肤合集）本地副本 + `link:` 子包；preset 型拷入 `.agent-presets`。卸载按安装方式逆向清理（pnpm remove 失败则不动文件、不留失效链接；成功后自动重启 dsh web 刷新插件表）；缺 git 时界面明确提示
+- **智能一键安装/卸载（预检分级）**：详情页自动预检仓库结构，给出「可直接安装 / 有风险 / 建议手动」三级评级——标准 bundle/nested/preset 一键安装照旧；特殊结构（多包 monorepo、非插件仓库、带构建脚本等）自动降级为**作者给出的安装方式**（从 README 提取安装命令，可复制，绝不自动执行）。卸载按安装方式逆向清理（pnpm remove 失败则不动文件、不留失效链接；成功后自动重启 dsh web 刷新插件表）；缺 git 时界面明确提示
 - **详情页**：星数/fork/语言/许可证/创建时间、README 轻量渲染、手动安装命令、GitHub 直达
 - **额度透明**：实时显示 GitHub 搜索剩余额度与恢复倒计时；可选填 GitHub Token（30 次/分，仅存本机浏览器）
 - **零服务器**：数据全部来自 GitHub 搜索 API（浏览器直连，CORS）+ raw.githubusercontent.com（特征验证与 README）；可选接入统计服务后解锁「社区装机徽章 + 真·飙升榜」（见 [`remote/README.md`](remote/README.md)，不部署零影响）
